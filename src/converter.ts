@@ -9,9 +9,6 @@ const turndown = new TurndownService({
   hr: '---',
 });
 
-// Matches [text](url) and [text](url "title") / [text](url 'title')
-const LINK_RE = /\[([^\]]*)\]\(([^)\s]+)((?:\s+"[^"]*"|\s+'[^']*')?)\)/g;
-
 function extractMainContent(html: string): string {
   const $ = cheerio.load(html);
   const main = $('main, article, [role="main"]').first();
@@ -60,9 +57,15 @@ export function rewriteInternalLinks(
   currentOutputPath: string,
   baseUrl: string,
 ): string {
+  // Regex created fresh each call — avoids stale lastIndex on the global flag across
+  // multiple fn() invocations inside rewriteOutsideCode.
+  // Matches [text](url) and [text](url "title") / [text](url 'title')
+  const linkRe = /\[([^\]]*)\]\(([^)\s]+)((?:\s+"[^"]*"|\s+'[^']*')?)\)/g;
+
   return rewriteOutsideCode(markdown, (chunk) =>
-    chunk.replace(LINK_RE, (match, text: string, url: string, title: string) => {
+    chunk.replace(linkRe, (match, text: string, url: string, title: string | undefined) => {
       try {
+        if (url.startsWith(':')) return match;
         // Resolve relative URLs (e.g. /about, ../page) against the page's own URL
         const parsed = new URL(url, baseUrl);
         if (parsed.hostname !== startHostname) return match;
@@ -74,7 +77,7 @@ export function rewriteInternalLinks(
 
         // Preserve in-page fragments and any title attribute
         const fragment = parsed.hash;
-        return `[${text}](${linked}${fragment}${title})`;
+        return `[${text}](${linked}${fragment}${title ?? ''})`;
       } catch {
         return match;
       }
