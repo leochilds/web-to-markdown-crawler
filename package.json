@@ -1,6 +1,6 @@
 {
   "name": "web-to-markdown-crawler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Web crawler that converts site pages to markdown, mirroring the URL structure locally",
   "type": "module",
   "main": "dist/index.js",
