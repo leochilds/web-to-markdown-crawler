@@ -236,6 +236,24 @@ describe('run', () => {
     expect(mockFetchPage).toHaveBeenCalledTimes(2);
   });
 
+  test('original hostname remains internal after redirect — both forms of URL are crawled', async () => {
+    // Start URL (example.com) redirects to www.example.com
+    mockFetchPage.mockImplementationOnce(async () => ({
+      html: '<html><body></body></html>',
+      finalUrl: 'https://www.example.com/',
+    }));
+    // Redirected page links to both the www and non-www forms
+    mockExtractLinks
+      .mockReturnValueOnce([
+        'https://www.example.com/page-a',
+        'https://example.com/page-b',  // original hostname — must still be internal
+      ])
+      .mockReturnValue([]);
+    await run(baseConfig);
+    // All three pages should be fetched (start + /page-a + /page-b)
+    expect(mockFetchPage).toHaveBeenCalledTimes(3);
+  });
+
   test('nodemap totalPages reflects the number of successfully written pages', async () => {
     mockExtractLinks
       .mockReturnValueOnce(['https://example.com/about'])

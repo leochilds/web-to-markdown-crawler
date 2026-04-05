@@ -1,5 +1,5 @@
 import pLimit from 'p-limit';
-import type { CrawlConfig, NodeMeta, NodeStatus, NodemapJson, NodemapJsonEntry, QueueItem } from './types.js';
+import type { CrawlConfig, CrawlState, NodeMeta, NodeStatus, NodemapJson, NodemapJsonEntry, QueueItem } from './types.js';
 import { FetchError, fetchPage } from './fetcher.js';
 import { extractLinks } from './parser.js';
 import { convertToMarkdown, rewriteInternalLinks } from './converter.js';
@@ -50,7 +50,7 @@ async function processPage(
   graph: GraphInstance,
   meta: Map<string, NodeMeta>,
   newItems: QueueItem[],
-  state: { totalPages: number; startHostname: string },
+  state: CrawlState,
 ): Promise<void> {
   const { url, depth } = item;
 
@@ -75,12 +75,17 @@ async function processPage(
       if (!meta.has(effectiveUrl)) {
         meta.set(effectiveUrl, { depth, status: 'pending' });
       }
-      // If the start URL redirected to a different hostname (e.g. example.com →
-      // www.example.com), adopt the new hostname as canonical so that links on
-      // the redirected page are still treated as internal.
-      if (depth === 0) {
-        state.startHostname = new URL(effectiveUrl).hostname;
-      }
+    }
+
+    // The canonical hostname is always the effective (post-redirect) hostname of
+    // the start page. Update on every depth-0 page so that when example.com
+    // redirects to www.example.com the canonical scope reflects the true destination.
+    // Both the original and redirected hostnames are kept as internal aliases so
+    // that links pointing to either form are still crawled.
+    if (depth === 0) {
+      const effectiveHostname = new URL(effectiveUrl).hostname;
+      state.startHostname = effectiveHostname;
+      state.internalHostnames.add(effectiveHostname);
     }
 
     const links = extractLinks(html, effectiveUrl);
@@ -88,7 +93,7 @@ async function processPage(
     for (const rawLink of links) {
       const link = normalizeUrl(rawLink);
       const linkHostname = new URL(link).hostname;
-      const isInternal = linkHostname === state.startHostname;
+      const isInternal = state.internalHostnames.has(linkHostname);
 
       // Record edge in graph regardless of whether we'll crawl it
       graph.dir(url, link);
@@ -144,7 +149,12 @@ export async function run(config: CrawlConfig): Promise<void> {
   const visited = new Set<string>([startUrl]);
   const graph = createGraph();
   const meta = new Map<string, NodeMeta>();
-  const state = { totalPages: 0, startHostname: new URL(startUrl).hostname };
+  const initialHostname = new URL(startUrl).hostname;
+  const state: CrawlState = {
+    totalPages: 0,
+    startHostname: initialHostname,
+    internalHostnames: new Set([initialHostname]),
+  };
 
   // Seed metadata for the start URL (graph nodes are created lazily when edges are added)
   meta.set(startUrl, { depth: 0, status: 'pending' });

@@ -25,6 +25,14 @@ export interface NodemapJsonEntry extends NodeMeta {
   outLinks: string[];
 }
 
+export interface CrawlState {
+  totalPages: number;
+  /** Canonical hostname after any start-URL redirect — used for link rewriting. */
+  startHostname: string;
+  /** All hostnames treated as internal (original + any redirect target). */
+  internalHostnames: Set<string>;
+}
+
 export interface NodemapJson {
   startUrl: string;
   crawledAt: string;
