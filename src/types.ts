@@ -5,6 +5,7 @@ export interface CrawlConfig {
   maxDepth?: number;
   maxPages?: number;
   delayMs?: number;
+  exclude?: string[];
 }
 
 export interface QueueItem {
