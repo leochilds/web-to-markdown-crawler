@@ -9,6 +9,9 @@ const turndown = new TurndownService({
   hr: '---',
 });
 
+// Matches [text](url) and [text](url "title") / [text](url 'title')
+const LINK_RE = /\[([^\]]*)\]\(([^)\s]+)((?:\s+"[^"]*"|\s+'[^']*')?)\)/g;
+
 function extractMainContent(html: string): string {
   const $ = cheerio.load(html);
   const main = $('main, article, [role="main"]').first();
@@ -41,24 +44,40 @@ function pathnameToOutputRelative(pathname: string): string {
   return p.replace(/^\//, '');
 }
 
+/**
+ * Apply a rewrite function only to text outside fenced code blocks and inline code spans.
+ * This prevents link-like patterns inside code examples from being rewritten.
+ */
+function rewriteOutsideCode(markdown: string, fn: (chunk: string) => string): string {
+  // Split on fenced blocks (``` ... ```) and inline code (`...`)
+  const parts = markdown.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
+  return parts.map((part, i) => (i % 2 === 0 ? fn(part) : part)).join('');
+}
+
 export function rewriteInternalLinks(
   markdown: string,
   startHostname: string,
   currentOutputPath: string,
+  baseUrl: string,
 ): string {
-  return markdown.replace(/\[([^\]]*)\]\(([^)\s]+)\)/g, (match, text: string, url: string) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.hostname !== startHostname) return match;
+  return rewriteOutsideCode(markdown, (chunk) =>
+    chunk.replace(LINK_RE, (match, text: string, url: string, title: string) => {
+      try {
+        // Resolve relative URLs (e.g. /about, ../page) against the page's own URL
+        const parsed = new URL(url, baseUrl);
+        if (parsed.hostname !== startHostname) return match;
 
-      const targetRelative = pathnameToOutputRelative(parsed.pathname);
-      const currentDir = path.dirname(currentOutputPath);
-      const rel = path.relative(currentDir, targetRelative).replace(/\\/g, '/');
-      // Ensure relative links start with ./ if in same dir
-      const linked = rel.startsWith('.') ? rel : './' + rel;
-      return `[${text}](${linked})`;
-    } catch {
-      return match;
-    }
-  });
+        const targetRelative = pathnameToOutputRelative(parsed.pathname);
+        const currentDir = path.dirname(currentOutputPath);
+        const rel = path.relative(currentDir, targetRelative).replace(/\\/g, '/');
+        const linked = rel.startsWith('.') ? rel : './' + rel;
+
+        // Preserve in-page fragments and any title attribute
+        const fragment = parsed.hash;
+        return `[${text}](${linked}${fragment}${title})`;
+      } catch {
+        return match;
+      }
+    }),
+  );
 }

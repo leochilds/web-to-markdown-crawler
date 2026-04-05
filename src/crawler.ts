@@ -67,11 +67,14 @@ async function processPage(
   try {
     const { html, finalUrl } = await fetchPage(url, config.delayMs);
 
-    // If redirected to a different URL, update graph and meta
+    // If redirected to a different URL, record the redirect edge and deduplicate
     const effectiveUrl = normalizeUrl(finalUrl);
     if (effectiveUrl !== url) {
-      if (!graph.adj(effectiveUrl)) {
-        graph.dir(url, effectiveUrl);
+      graph.dir(url, effectiveUrl);
+      // Prevent the redirect target from being enqueued separately
+      visited.add(effectiveUrl);
+      if (!meta.has(effectiveUrl)) {
+        meta.set(effectiveUrl, { depth, status: 'pending' });
       }
     }
 
@@ -108,7 +111,7 @@ async function processPage(
     const relativeOutputPath = path.relative(path.resolve(config.outputDir), outputPath);
 
     const markdown = convertToMarkdown(html, effectiveUrl);
-    const rewritten = rewriteInternalLinks(markdown, startHostname, relativeOutputPath);
+    const rewritten = rewriteInternalLinks(markdown, startHostname, relativeOutputPath, effectiveUrl);
 
     await writePage(outputPath, rewritten);
 
