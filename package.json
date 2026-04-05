@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target node",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests/parser.test.ts && bun test tests/converter.test.ts && bun test tests/writer.test.ts && bun test tests/fetcher.test.ts && bun test tests/crawler.test.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",
