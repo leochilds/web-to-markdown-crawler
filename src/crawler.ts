@@ -1,5 +1,5 @@
 import pLimit from 'p-limit';
-import type { CrawlConfig, NodeMeta, NodeStatus, NodemapJson, NodemapJsonEntry, QueueItem } from './types.js';
+import type { CrawlConfig, CrawlState, NodeMeta, NodeStatus, NodemapJson, NodemapJsonEntry, QueueItem } from './types.js';
 import { FetchError, fetchPage } from './fetcher.js';
 import { extractLinks } from './parser.js';
 import { convertToMarkdown, rewriteInternalLinks } from './converter.js';
@@ -46,12 +46,11 @@ function serializeGraph(
 async function processPage(
   item: QueueItem,
   config: CrawlConfig,
-  startHostname: string,
   visited: Set<string>,
   graph: GraphInstance,
   meta: Map<string, NodeMeta>,
   newItems: QueueItem[],
-  state: { totalPages: number },
+  state: CrawlState,
 ): Promise<void> {
   const { url, depth } = item;
 
@@ -78,12 +77,23 @@ async function processPage(
       }
     }
 
+    // The canonical hostname is always the effective (post-redirect) hostname of
+    // the start page. Update on every depth-0 page so that when example.com
+    // redirects to www.example.com the canonical scope reflects the true destination.
+    // Both the original and redirected hostnames are kept as internal aliases so
+    // that links pointing to either form are still crawled.
+    if (depth === 0) {
+      const effectiveHostname = new URL(effectiveUrl).hostname;
+      state.startHostname = effectiveHostname;
+      state.internalHostnames.add(effectiveHostname);
+    }
+
     const links = extractLinks(html, effectiveUrl);
 
     for (const rawLink of links) {
       const link = normalizeUrl(rawLink);
       const linkHostname = new URL(link).hostname;
-      const isInternal = linkHostname === startHostname;
+      const isInternal = state.internalHostnames.has(linkHostname);
 
       // Record edge in graph regardless of whether we'll crawl it
       graph.dir(url, link);
@@ -111,7 +121,7 @@ async function processPage(
     const relativeOutputPath = path.relative(path.resolve(config.outputDir), outputPath);
 
     const markdown = convertToMarkdown(html, effectiveUrl);
-    const rewritten = rewriteInternalLinks(markdown, startHostname, relativeOutputPath, effectiveUrl);
+    const rewritten = rewriteInternalLinks(markdown, state.startHostname, relativeOutputPath, effectiveUrl);
 
     await writePage(outputPath, rewritten);
 
@@ -134,13 +144,17 @@ async function processPage(
 
 export async function run(config: CrawlConfig): Promise<void> {
   const startUrl = normalizeUrl(config.startUrl);
-  const startHostname = new URL(startUrl).hostname;
   const crawledAt = new Date().toISOString();
 
   const visited = new Set<string>([startUrl]);
   const graph = createGraph();
   const meta = new Map<string, NodeMeta>();
-  const state = { totalPages: 0 };
+  const initialHostname = new URL(startUrl).hostname;
+  const state: CrawlState = {
+    totalPages: 0,
+    startHostname: initialHostname,
+    internalHostnames: new Set([initialHostname]),
+  };
 
   // Seed metadata for the start URL (graph nodes are created lazily when edges are added)
   meta.set(startUrl, { depth: 0, status: 'pending' });
@@ -156,7 +170,7 @@ export async function run(config: CrawlConfig): Promise<void> {
 
     const tasks = batch.map(item =>
       limit(() =>
-        processPage(item, config, startHostname, visited, graph, meta, newItems, state),
+        processPage(item, config, visited, graph, meta, newItems, state),
       ),
     );
 
