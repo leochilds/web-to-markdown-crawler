@@ -1,5 +1,8 @@
 # web-to-markdown-crawler
 
+[![npm version](https://img.shields.io/npm/v/web-to-markdown-crawler)](https://www.npmjs.com/package/web-to-markdown-crawler)
+[![CI](https://github.com/leochilds/web-to-markdown-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/leochilds/web-to-markdown-crawler/actions/workflows/ci.yml)
+
 A CLI tool that crawls a website and converts every page to Markdown, mirroring the site's URL structure as a local directory tree. Internal links are rewritten to relative `.md` paths so the output works as a self-contained document collection.
 
 ## Features
