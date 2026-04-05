@@ -222,6 +222,20 @@ describe('run', () => {
     expect(nodemap.nodes['https://example.com/'].error).toBeTruthy();
   });
 
+  test('adopts redirected hostname as canonical — links on redirected site are crawled', async () => {
+    // Start URL (example.com) redirects to www.example.com
+    mockFetchPage.mockImplementationOnce(async () => ({
+      html: '<html><body></body></html>',
+      finalUrl: 'https://www.example.com/',
+    }));
+    // Page on www.example.com has an internal link — should be enqueued
+    mockExtractLinks
+      .mockReturnValueOnce(['https://www.example.com/about'])
+      .mockReturnValue([]);
+    await run(baseConfig);
+    expect(mockFetchPage).toHaveBeenCalledTimes(2);
+  });
+
   test('nodemap totalPages reflects the number of successfully written pages', async () => {
     mockExtractLinks
       .mockReturnValueOnce(['https://example.com/about'])
