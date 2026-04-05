@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 
 function resolveUrl(href: string, base: string): string | null {
   try {
+    if (href.startsWith(':')) return null;
     const resolved = new URL(href, base);
     // Strip fragments — two URLs differing only by fragment are the same page
     resolved.hash = '';
