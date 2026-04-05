@@ -6,8 +6,8 @@ Only the latest release is actively supported with security updates.
 
 | Version | Supported |
 | ------- | --------- |
-| latest  | ✅        |
-| older   | ❌        |
+| latest  | :white_check_mark: |
+| older   | :x:                |
 
 ## Reporting a Vulnerability
 
