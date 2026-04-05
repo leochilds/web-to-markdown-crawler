@@ -92,11 +92,9 @@ async function processPage(
 
     for (const rawLink of links) {
       const link = normalizeUrl(rawLink);
-      const linkHostname = new URL(link).hostname;
-      const isInternal = state.internalHostnames.has(linkHostname);
-      const isExcluded =
-        config.exclude !== undefined &&
-        config.exclude.some(pattern => new URL(link).pathname.startsWith(pattern));
+      const parsedLink = new URL(link);
+      const isInternal = state.internalHostnames.has(parsedLink.hostname);
+      const isExcluded = config.exclude?.some(pattern => parsedLink.pathname.startsWith(pattern)) ?? false;
 
       // Record edge in graph regardless of whether we'll crawl it
       graph.dir(url, link);
