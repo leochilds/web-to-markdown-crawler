@@ -18,7 +18,7 @@
     "build": "bun build src/index.ts --outdir dist --target node",
     "typecheck": "tsc --noEmit",
     "test": "bun test tests/parser.test.ts && bun test tests/converter.test.ts && bun test tests/writer.test.ts && bun test tests/fetcher.test.ts && bun test tests/crawler.test.ts",
-    "prepublishOnly": "bun run typecheck && bun run build"
+    "prepublishOnly": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
