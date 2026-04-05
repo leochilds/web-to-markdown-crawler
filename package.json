@@ -1,0 +1,28 @@
+{
+  "name": "web-to-markdown-crawler",
+  "version": "1.0.0",
+  "description": "Web crawler that converts site pages to markdown, mirroring the URL structure locally",
+  "type": "module",
+  "module": "src/index.ts",
+  "bin": {
+    "crawl": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "commander": "^12.0.0",
+    "got": "^14.0.0",
+    "graphjs": "git+https://github.com/tantalor/graphjs.git",
+    "p-limit": "^6.1.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/turndown": "^5.0.4",
+    "typescript": "^5.4.0"
+  }
+}
