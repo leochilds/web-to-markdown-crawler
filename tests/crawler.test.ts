@@ -263,6 +263,37 @@ describe('run', () => {
     expect(nodemap.totalPages).toBe(2);
   });
 
+  test('does not crawl links matching an excluded path prefix', async () => {
+    mockExtractLinks.mockReturnValueOnce(['https://example.com/admin/users']).mockReturnValue([]);
+    await run({ ...baseConfig, exclude: ['/admin'] });
+    expect(mockFetchPage).toHaveBeenCalledTimes(1); // only start page
+  });
+
+  test('excluded links appear in the nodemap with status skipped', async () => {
+    mockExtractLinks.mockReturnValueOnce(['https://example.com/admin/users']).mockReturnValue([]);
+    await run({ ...baseConfig, exclude: ['/admin'] });
+    const nodemap = capturedNodemap();
+    expect(nodemap.nodes['https://example.com/admin/users']?.status).toBe('skipped');
+  });
+
+  test('exclusion matches by path prefix — /admin/ excludes /admin/users but not /admissions', async () => {
+    mockExtractLinks
+      .mockReturnValueOnce(['https://example.com/admin/users', 'https://example.com/admissions'])
+      .mockReturnValue([]);
+    await run({ ...baseConfig, exclude: ['/admin/'] });
+    const fetchedUrls = mockFetchPage.mock.calls.map(c => c[0]);
+    expect(fetchedUrls).toContain('https://example.com/admissions');
+    expect(fetchedUrls).not.toContain('https://example.com/admin/users');
+  });
+
+  test('multiple exclude patterns all apply', async () => {
+    mockExtractLinks
+      .mockReturnValueOnce(['https://example.com/admin', 'https://example.com/login', 'https://example.com/about'])
+      .mockReturnValue([]);
+    await run({ ...baseConfig, exclude: ['/admin', '/login'] });
+    expect(mockFetchPage).toHaveBeenCalledTimes(2); // start + /about
+  });
+
   afterAll(() => {
     mock.restore();
   });

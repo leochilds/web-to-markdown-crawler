@@ -28,6 +28,12 @@ program
   .option('--max-depth <n>', 'Maximum crawl depth (0 = start page only)')
   .option('--max-pages <n>', 'Maximum number of pages to crawl')
   .option('--delay <ms>', 'Delay in milliseconds between requests')
+  .option(
+    '--exclude <path>',
+    'Exclude a URL path prefix from crawling — can be repeated (e.g. --exclude /admin --exclude /login)',
+    (val: string, prev: string[]) => [...prev, val],
+    [] as string[],
+  )
   .action(async (url: string, opts: Record<string, string | undefined>) => {
     // Validate URL
     const startUrl = parseStartUrl(url);
@@ -41,6 +47,8 @@ program
     const maxDepth = opts['maxDepth'] != null ? parseInt(opts['maxDepth'], 10) : undefined;
     const maxPages = opts['maxPages'] != null ? parseInt(opts['maxPages'], 10) : undefined;
     const delayMs = opts['delay'] != null ? parseInt(opts['delay'], 10) : undefined;
+    const excludeRaw = opts['exclude'] as unknown as string[];
+    const exclude = excludeRaw.length ? excludeRaw : undefined;
 
     if (maxDepth !== undefined && isNaN(maxDepth)) {
       console.error('Error: --max-depth must be an integer');
@@ -62,6 +70,7 @@ program
       maxDepth,
       maxPages,
       delayMs,
+      exclude,
     };
 
     console.log(`Starting crawl of ${startUrl}`);

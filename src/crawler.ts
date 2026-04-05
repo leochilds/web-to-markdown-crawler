@@ -94,6 +94,9 @@ async function processPage(
       const link = normalizeUrl(rawLink);
       const linkHostname = new URL(link).hostname;
       const isInternal = state.internalHostnames.has(linkHostname);
+      const isExcluded =
+        config.exclude !== undefined &&
+        config.exclude.some(pattern => new URL(link).pathname.startsWith(pattern));
 
       // Record edge in graph regardless of whether we'll crawl it
       graph.dir(url, link);
@@ -102,13 +105,14 @@ async function processPage(
       if (!meta.has(link)) {
         meta.set(link, {
           depth: depth + 1,
-          status: isInternal ? 'pending' : 'skipped',
+          status: isInternal && !isExcluded ? 'pending' : 'skipped',
         });
       }
 
-      // Enqueue only internal, unvisited links within depth limit
+      // Enqueue only internal, unvisited, non-excluded links within depth limit
       if (
         isInternal &&
+        !isExcluded &&
         !visited.has(link) &&
         (config.maxDepth === undefined || depth + 1 <= config.maxDepth)
       ) {
